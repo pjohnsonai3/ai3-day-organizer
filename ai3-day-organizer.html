@@ -1,0 +1,2282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day Organizer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #1e1e1e;
+    --sidebar-bg: #242424;
+    --surface: #2a2a2a;
+    --surface2: #303030;
+    --surface3: #383838;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.12);
+    --text: #f0f0f0;
+    --text2: #a0a0a0;
+    --text3: #666;
+    --accent: #0a84ff;
+    --accent-dim: rgba(10,132,255,0.18);
+    --green: #32d74b;
+    --orange: #ff9f0a;
+    --red: #ff453a;
+    --purple: #bf5af2;
+    --yellow: #ffd60a;
+    --sidebar-w: 220px;
+    --titlebar-h: 52px;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f0f0f0;
+      --sidebar-bg: #e8e8e8;
+      --surface: #ffffff;
+      --surface2: #f5f5f5;
+      --surface3: #ebebeb;
+      --border: rgba(0,0,0,0.08);
+      --border2: rgba(0,0,0,0.12);
+      --text: #1c1c1e;
+      --text2: #636366;
+      --text3: #aaa;
+      --accent-dim: rgba(10,132,255,0.1);
+    }
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+
+  /* ── WINDOW CHROME ── */
+  .window {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: var(--bg);
+  }
+
+  .titlebar {
+    height: var(--titlebar-h);
+    background: var(--sidebar-bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    flex-shrink: 0;
+    -webkit-app-region: drag;
+  }
+
+  .traffic-lights {
+    display: flex;
+    gap: 7px;
+    -webkit-app-region: no-drag;
+  }
+
+  .tl {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    cursor: pointer;
+    position: relative;
+    border: 0.5px solid rgba(0,0,0,0.25);
+    flex-shrink: 0;
+    transition: filter 0.15s;
+  }
+  .tl:hover { filter: brightness(0.85); }
+  .tl.close { background: #ff5f57; }
+  .tl.min   { background: #febc2e; }
+  .tl.max   { background: #28c840; }
+
+  .tl .icon {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 7px;
+    opacity: 0;
+    color: rgba(0,0,0,0.5);
+    transition: opacity 0.1s;
+  }
+  .traffic-lights:hover .icon { opacity: 1; }
+
+  .titlebar-title {
+    flex: 1;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+
+  .titlebar-date {
+    font-size: 11px;
+    color: var(--text2);
+    font-weight: 400;
+  }
+
+  .titlebar-right {
+    display: flex;
+    gap: 8px;
+    -webkit-app-region: no-drag;
+  }
+
+  .icon-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: transparent;
+    border: none;
+    color: var(--text2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    font-size: 14px;
+  }
+  .icon-btn:hover { background: var(--surface3); color: var(--text); }
+
+  /* ── MAIN LAYOUT ── */
+  .body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+
+  .sidebar::-webkit-scrollbar { width: 0; }
+
+  .sidebar-section { padding: 20px 12px 8px; }
+
+  .sidebar-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text3);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0 8px;
+    margin-bottom: 4px;
+  }
+
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text2);
+    font-size: 13px;
+    font-weight: 400;
+    transition: background 0.1s, color 0.1s;
+    margin-bottom: 1px;
+  }
+
+  .sidebar-item:hover { background: var(--surface3); color: var(--text); }
+  .sidebar-item.active { background: var(--accent); color: #fff; }
+  .sidebar-item.active .si-icon { color: #fff; opacity: 1; }
+
+  .si-icon {
+    font-size: 14px;
+    width: 18px;
+    text-align: center;
+    opacity: 0.7;
+    flex-shrink: 0;
+  }
+
+  .si-badge {
+    margin-left: auto;
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+  }
+
+  .sidebar-item.active .si-badge { background: rgba(255,255,255,0.3); }
+
+  /* Focus Score Widget */
+  .focus-widget {
+    margin: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+
+  .fw-label {
+    font-size: 11px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .fw-score {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.04em;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .fw-bar-bg {
+    height: 4px;
+    background: var(--surface3);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .fw-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    transition: width 1s ease;
+  }
+
+  .fw-sub {
+    font-size: 11px;
+    color: var(--text2);
+    margin-top: 6px;
+  }
+
+  /* ── CONTENT ── */
+  .content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Tab bar */
+  .tabbar {
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 2px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    height: 38px;
+    flex-shrink: 0;
+  }
+
+  .tab {
+    padding: 5px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text2);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .tab:hover { background: var(--surface3); color: var(--text); }
+  .tab.active { background: var(--surface2); color: var(--text); }
+
+  .content-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  .content-area::-webkit-scrollbar { width: 8px; }
+  .content-area::-webkit-scrollbar-track { background: transparent; }
+  .content-area::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 4px; }
+  .content-area::-webkit-scrollbar-thumb:hover { background: var(--border2); }
+
+  /* ── TODAY VIEW ── */
+  .today-grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+    align-items: start;
+  }
+
+  /* Section headers */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .section-action {
+    font-size: 12px;
+    color: var(--accent);
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .section-action:hover { text-decoration: underline; }
+
+  /* ── TIMELINE ── */
+  .timeline { display: flex; flex-direction: column; }
+
+  .timeline-row {
+    display: flex;
+    gap: 10px;
+    min-height: 44px;
+    position: relative;
+  }
+
+  .tl-time {
+    width: 46px;
+    font-size: 11px;
+    color: var(--text3);
+    text-align: right;
+    padding-top: 12px;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tl-track {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 20px;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .tl-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--surface3);
+    border: 1.5px solid var(--border2);
+    margin-top: 10px;
+    flex-shrink: 0;
+    z-index: 1;
+    transition: all 0.2s;
+  }
+
+  .tl-dot.busy { background: var(--accent); border-color: var(--accent); }
+  .tl-dot.now-dot {
+    background: var(--red);
+    border-color: var(--red);
+    box-shadow: 0 0 0 3px rgba(255,69,58,0.2);
+    animation: glow 2s infinite;
+  }
+
+  @keyframes glow {
+    0%,100% { box-shadow: 0 0 0 3px rgba(255,69,58,0.2); }
+    50% { box-shadow: 0 0 0 5px rgba(255,69,58,0.1); }
+  }
+
+  .tl-line {
+    flex: 1;
+    width: 1px;
+    background: var(--border);
+    min-height: 10px;
+  }
+
+  .tl-content { flex: 1; padding: 4px 0 8px; }
+
+  .event-pill {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .event-pill::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 3px 0 0 3px;
+  }
+
+  .ep-meeting::before { background: var(--accent); }
+  .ep-social::before { background: var(--orange); }
+  .ep-allday::before { background: var(--purple); }
+  .ep-external::before { background: var(--green); }
+
+  .event-pill:hover {
+    background: var(--surface2);
+    border-color: var(--border2);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+
+  .event-pill.past { opacity: 0.45; }
+
+  .ep-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .ep-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text2);
+  }
+
+  .ep-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--text3); }
+
+  .now-band {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 0 6px;
+    margin-left: 76px;
+  }
+
+  .now-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--red);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .now-hr { flex: 1; height: 1px; background: linear-gradient(to right, var(--red) 0%, transparent 80%); opacity: 0.5; }
+
+  /* ── TASK CARDS ── */
+  .task-add-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .task-textfield {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .task-textfield:focus { border-color: var(--accent); }
+  .task-textfield::placeholder { color: var(--text3); }
+
+  .pri-picker {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+    width: 80px;
+  }
+
+  .add-task-btn {
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+  .add-task-btn:hover { opacity: 0.85; }
+
+  .task-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .task-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .task-card:hover {
+    border-color: var(--border2);
+    background: var(--surface2);
+  }
+
+  .task-card.done { opacity: 0.45; }
+  .task-card.done .task-label { text-decoration: line-through; color: var(--text2); }
+
+  .task-check {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border2);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: transparent;
+    transition: all 0.15s;
+    cursor: pointer;
+  }
+
+  .task-card.done .task-check {
+    background: var(--green);
+    border-color: var(--green);
+    color: #fff;
+  }
+
+  .task-label {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.3;
+  }
+
+  .task-pri {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+
+  .pri-high   { background: rgba(255,69,58,0.15);  color: var(--red); }
+  .pri-med    { background: rgba(255,159,10,0.15); color: var(--orange); }
+  .pri-low    { background: rgba(50,215,75,0.15);  color: var(--green); }
+
+  .task-del {
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    background: transparent;
+    border: none;
+    color: var(--text3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: all 0.1s;
+    flex-shrink: 0;
+    opacity: 0;
+  }
+
+  .task-card:hover .task-del { opacity: 1; }
+  .task-del:hover { background: rgba(255,69,58,0.15); color: var(--red); }
+
+  /* ── RIGHT COLUMN ── */
+  .right-col { display: flex; flex-direction: column; gap: 14px; }
+
+  /* Mini calendar */
+  .mini-cal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+
+  .cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .cal-month {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .cal-nav {
+    background: none;
+    border: none;
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.1s;
+  }
+  .cal-nav:hover { background: var(--surface3); }
+
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    text-align: center;
+  }
+
+  .cal-dow {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    padding: 2px 0 6px;
+    letter-spacing: 0.04em;
+  }
+
+  .cal-day {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.1s;
+    color: var(--text2);
+    margin: 0 auto;
+  }
+
+  .cal-day:hover { background: var(--surface3); color: var(--text); }
+  .cal-day.today { background: var(--accent); color: #fff; font-weight: 600; }
+  .cal-day.other-month { color: var(--text3); }
+  .cal-day.has-event::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .cal-day.today.has-event::after { background: rgba(255,255,255,0.6); }
+  .cal-day { position: relative; }
+
+  /* Upcoming */
+  .upcoming-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .upcoming-header {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .uc-event {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+    cursor: pointer;
+  }
+  .uc-event:last-child { border-bottom: none; }
+  .uc-event:hover { background: var(--surface2); }
+
+  .uc-stripe {
+    width: 3px;
+    height: 100%;
+    border-radius: 2px;
+    align-self: stretch;
+    min-height: 32px;
+    flex-shrink: 0;
+  }
+
+  .uc-body { flex: 1; min-width: 0; }
+
+  .uc-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .uc-time { font-size: 11px; color: var(--text2); }
+
+  /* Focus mode banner */
+  .focus-banner {
+    background: linear-gradient(135deg, var(--accent-dim), transparent);
+    border: 1px solid rgba(10,132,255,0.2);
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .fb-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .fb-task {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .fb-meta { font-size: 11px; color: var(--text2); }
+
+  .fb-btn {
+    align-self: flex-start;
+    margin-top: 4px;
+    background: var(--accent);
+    border: none;
+    border-radius: 6px;
+    padding: 5px 12px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .fb-btn:hover { opacity: 0.85; }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--text3);
+    font-size: 13px;
+  }
+
+  /* ── STATUS BAR ── */
+  .statusbar {
+    height: 24px;
+    background: var(--sidebar-bg);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 20px;
+    flex-shrink: 0;
+  }
+
+  .sb-item {
+    font-size: 11px;
+    color: var(--text3);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .sb-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+  }
+
+  #clock {
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+    color: var(--text2);
+    margin-left: auto;
+  }
+
+  /* Divider */
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+  /* Group label */
+  .group-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 8px 0 4px;
+  }
+
+  /* Email filter buttons */
+  .email-filter-btn {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .email-filter-btn:hover { background: var(--surface3); color: var(--text); }
+  .email-filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .email-selected { outline: 2px solid var(--accent) !important; }
+
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  /* Tooltip */
+  [data-tip] { position: relative; }
+  [data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.85);
+    color: #fff;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 5px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 100;
+  }
+</style>
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+</head>
+<body>
+
+<div class="window">
+
+  <!-- TITLE BAR -->
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <div class="tl close"><div class="icon">✕</div></div>
+      <div class="tl min"><div class="icon">−</div></div>
+      <div class="tl max"><div class="icon">+</div></div>
+    </div>
+    <div class="titlebar-title">Day Organizer</div>
+    <div class="titlebar-date" id="header-date"></div>
+    <div class="titlebar-right">
+      <button class="icon-btn" data-tip="Sync Outlook" onclick="syncOutlook()">⟳</button>
+      <button class="icon-btn" data-tip="Settings">⚙</button>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Views</div>
+        <div class="sidebar-item active" onclick="switchTab('today')">
+          <span class="si-icon">📅</span> Today
+          <span class="si-badge" id="badge-today">2</span>
+        </div>
+        <div class="sidebar-item" onclick="switchTab('tasks')">
+          <span class="si-icon">✅</span> Tasks
+          <span class="si-badge" id="badge-tasks">0</span>
+        </div>
+        <div class="sidebar-item" onclick="switchTab('upcoming')">
+          <span class="si-icon">🗓</span> Upcoming
+        </div>
+        <div class="sidebar-item" onclick="switchTab('focus')">
+          <span class="si-icon">🎯</span> Focus Mode
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Inboxes</div>
+        <div class="sidebar-item" onclick="switchTab('email')">
+          <span class="si-icon">✉️</span> Email
+          <span class="si-badge" id="badge-email">7</span>
+        </div>
+        <div class="sidebar-item" onclick="switchTab('teams')">
+          <span class="si-icon">💬</span> Teams
+          <span class="si-badge" id="badge-teams" style="display:none">0</span>
+        </div>
+      </div>
+
+      <!-- Focus Score -->
+      <div style="flex:1"></div>
+      <div class="focus-widget">
+        <div class="fw-label">Focus Score</div>
+        <div class="fw-score" id="focus-score">--</div>
+        <div class="fw-bar-bg">
+          <div class="fw-bar-fill" id="focus-bar" style="width:0%"></div>
+        </div>
+        <div class="fw-sub" id="focus-sub">Loading…</div>
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+      <!-- Tab bar -->
+      <div class="tabbar">
+        <div class="tab active" id="tab-today" onclick="switchTab('today')">Today</div>
+        <div class="tab" id="tab-tasks" onclick="switchTab('tasks')">Tasks</div>
+        <div class="tab" id="tab-upcoming" onclick="switchTab('upcoming')">Upcoming</div>
+        <div class="tab" id="tab-focus" onclick="switchTab('focus')">Focus Mode</div>
+        <div class="tab" id="tab-email" onclick="switchTab('email')">Email</div>
+        <div class="tab" id="tab-teams" onclick="switchTab('teams')">Teams</div>
+      </div>
+
+      <!-- VIEWS -->
+      <div class="content-area" id="view-today">
+        <div class="today-grid">
+          <!-- Left: Timeline -->
+          <div>
+            <div class="section-header">
+              <div class="section-title">Today's Schedule</div>
+            </div>
+            <div class="timeline" id="timeline"></div>
+          </div>
+
+          <!-- Right -->
+          <div class="right-col">
+            <!-- Mini calendar -->
+            <div class="mini-cal">
+              <div class="cal-header">
+                <button class="cal-nav" onclick="prevMonth()">‹</button>
+                <div class="cal-month" id="cal-month-label"></div>
+                <button class="cal-nav" onclick="nextMonth()">›</button>
+              </div>
+              <div class="cal-grid" id="cal-grid"></div>
+            </div>
+
+            <!-- Upcoming tomorrow -->
+            <div class="upcoming-card">
+              <div class="upcoming-header">📆 Tomorrow</div>
+              <div id="tomorrow-list"></div>
+            </div>
+
+            <!-- Next up task -->
+            <div class="focus-banner" id="next-up-banner">
+              <div class="fb-title">🎯 Next Up</div>
+              <div class="fb-task" id="next-up-task">No priority tasks yet</div>
+              <div class="fb-meta" id="next-up-meta">Add a task to get started</div>
+              <button class="fb-btn" onclick="switchTab('focus')">Start Focus</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="content-area" id="view-tasks" style="display:none">
+        <div class="section-header">
+          <div class="section-title">All Tasks</div>
+        </div>
+        <div class="task-add-bar">
+          <input class="task-textfield" id="task-input" placeholder="Add a task…" onkeydown="taskKeydown(event)">
+          <select class="pri-picker" id="task-pri">
+            <option value="high">🔴 High</option>
+            <option value="med" selected>🟡 Med</option>
+            <option value="low">🟢 Low</option>
+          </select>
+          <button class="add-task-btn" onclick="addTask()">Add</button>
+        </div>
+        <div class="task-list" id="task-list"></div>
+      </div>
+
+      <div class="content-area" id="view-upcoming" style="display:none">
+        <div class="section-header">
+          <div class="section-title">Upcoming Events</div>
+        </div>
+        <div id="upcoming-list"></div>
+      </div>
+
+      <div class="content-area" id="view-focus" style="display:none">
+        <div style="max-width:520px; margin:0 auto;">
+          <div style="text-align:center; padding: 30px 0 24px;">
+            <div style="font-size:48px; margin-bottom:12px;">🎯</div>
+            <div style="font-size:22px; font-weight:700; color:var(--text); margin-bottom:6px;">Focus Mode</div>
+            <div style="font-size:13px; color:var(--text2);">One task. Full attention.</div>
+          </div>
+
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:16px;">
+            <div class="section-title" style="margin-bottom:12px;">Current Focus</div>
+            <div id="focus-current-task" style="font-size:18px;font-weight:600;color:var(--text);margin-bottom:8px;">No task selected</div>
+            <div id="focus-timer" style="font-size:42px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-0.03em;margin-bottom:16px;">25:00</div>
+            <div style="display:flex;gap:8px;">
+              <button class="add-task-btn" id="focus-start-btn" onclick="toggleTimer()" style="flex:1;text-align:center;">▶ Start</button>
+              <button class="add-task-btn" onclick="resetTimer()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text2);">Reset</button>
+            </div>
+          </div>
+
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden;">
+            <div class="upcoming-header">High Priority Tasks</div>
+            <div id="focus-task-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="content-area" id="view-email" style="display:none">
+        <div class="section-header">
+          <div class="section-title">Inbox Review</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div id="email-filter-bar" style="display:flex;gap:4px;">
+              <button class="email-filter-btn active" onclick="filterEmails('all')">All</button>
+              <button class="email-filter-btn" onclick="filterEmails('action')">⚡ Action</button>
+              <button class="email-filter-btn" onclick="filterEmails('review')">👁 Review</button>
+            </div>
+            <button class="section-action" onclick="refreshEmailSummary()" id="ai-triage-btn">✦ AI Triage</button>
+          </div>
+        </div>
+
+        <div id="ai-summary-banner" style="display:none;background:linear-gradient(135deg,rgba(10,132,255,0.12),rgba(191,90,242,0.08));border:1px solid rgba(10,132,255,0.25);border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <span style="font-size:13px;font-weight:700;color:var(--accent);">✦ AI Triage</span>
+            <span id="ai-summary-time" style="font-size:10px;color:var(--text3);"></span>
+          </div>
+          <div id="ai-summary-text" style="font-size:12px;color:var(--text2);line-height:1.6;"></div>
+        </div>
+
+        <div id="ai-loading" style="display:none;text-align:center;padding:20px;color:var(--text3);font-size:12px;">
+          <div style="margin-bottom:8px;font-size:20px;animation:spin 1s linear infinite;display:inline-block;">⟳</div><br>
+          Analyzing your inbox…
+        </div>
+
+        <div id="email-list"></div>
+
+        <div id="email-detail" style="display:none;margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+          <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div id="detail-from" style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;"></div>
+              <div id="detail-subject" style="font-size:12px;color:var(--text2);"></div>
+            </div>
+            <button onclick="closeDetail()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:4px;">✕</button>
+          </div>
+          <div style="padding:14px 16px;">
+            <div id="detail-note" style="font-size:12px;color:var(--text2);line-height:1.6;padding:10px 12px;background:var(--surface2);border-radius:6px;margin-bottom:12px;"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="fb-btn" onclick="draftReply()" id="draft-reply-btn">✉ Draft Reply</button>
+              <button class="fb-btn" onclick="markDone()" style="background:var(--green);">✓ Mark Done</button>
+              <button class="fb-btn" onclick="closeDetail()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text2);">Dismiss</button>
+            </div>
+            <div id="draft-area" style="display:none;margin-top:12px;">
+              <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">✦ Draft Reply</div>
+              <textarea id="draft-text" style="width:100%;min-height:120px;background:var(--surface3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:12px;line-height:1.6;resize:vertical;outline:none;" placeholder="Generating draft…"></textarea>
+              <div style="display:flex;gap:8px;margin-top:8px;">
+                <button class="fb-btn" style="background:var(--accent);" onclick="copyDraft()">Copy Draft</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TEAMS VIEW -->
+      <div class="content-area" id="view-teams" style="display:none">
+        <div class="section-header">
+          <div class="section-title">Teams</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div style="display:flex;gap:4px;">
+              <button class="email-filter-btn active" id="teams-filter-chats" onclick="filterTeams('chats')">💬 Chats</button>
+              <button class="email-filter-btn" id="teams-filter-mentions" onclick="filterTeams('mentions')">@ Mentions</button>
+              <button class="email-filter-btn" id="teams-filter-meetings" onclick="filterTeams('meetings')">📅 Meetings</button>
+            </div>
+            <button class="section-action" id="teams-triage-btn" onclick="teamsAiSummary()">✦ AI Summary</button>
+          </div>
+        </div>
+
+        <!-- Teams AI summary banner -->
+        <div id="teams-summary-banner" style="display:none;background:linear-gradient(135deg,rgba(98,100,167,0.15),rgba(10,132,255,0.07));border:1px solid rgba(98,100,167,0.3);border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <span style="font-size:13px;font-weight:700;color:#6264a7;">💬 Teams Summary</span>
+            <span id="teams-summary-time" style="font-size:10px;color:var(--text3);"></span>
+          </div>
+          <div id="teams-summary-text" style="font-size:12px;color:var(--text2);line-height:1.6;"></div>
+        </div>
+
+        <!-- Loading -->
+        <div id="teams-loading" style="display:none;text-align:center;padding:20px;color:var(--text3);font-size:12px;">
+          <div style="margin-bottom:8px;font-size:20px;animation:spin 1s linear infinite;display:inline-block;">⟳</div><br>
+          Loading Teams…
+        </div>
+
+        <div id="teams-list"></div>
+
+        <!-- Message detail / reply panel -->
+        <div id="teams-detail" style="display:none;margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+          <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div id="teams-detail-from" style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;"></div>
+              <div id="teams-detail-context" style="font-size:11px;color:var(--text3);"></div>
+            </div>
+            <button onclick="closeTeamsDetail()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:4px;">✕</button>
+          </div>
+          <div style="padding:14px 16px;">
+            <div id="teams-detail-body" style="font-size:12px;color:var(--text2);line-height:1.6;padding:10px 12px;background:var(--surface2);border-radius:6px;margin-bottom:12px;max-height:120px;overflow-y:auto;"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+              <button class="fb-btn" onclick="teamsAiReply()">✦ Draft Reply</button>
+              <button class="fb-btn" onclick="closeTeamsDetail()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text2);">Dismiss</button>
+            </div>
+            <div id="teams-reply-area" style="display:none;">
+              <textarea id="teams-reply-text" style="width:100%;min-height:90px;background:var(--surface3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:12px;line-height:1.6;resize:vertical;outline:none;" placeholder="Generating reply…"></textarea>
+              <div style="display:flex;gap:8px;margin-top:8px;">
+                <button class="fb-btn" style="background:var(--accent);" onclick="copyTeamsReply()">Copy Reply</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="statusbar">
+    <div class="sb-item"><div class="sb-dot" id="outlook-dot" style="background:var(--text3)"></div> <span id="outlook-status">Outlook — not connected</span></div>
+    <div class="sb-item" id="sb-tasks-count">0 tasks remaining</div>
+    <div id="clock" class="sb-item"></div>
+  </div>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────────────
+
+const TODAY_EVENTS = [
+  { id: 'e1', name: "Ashlyn's Birthday 🎂", type: 'allday', isAllDay: true, start: null, end: null },
+  { id: 'e2', name: 'Patrick/Doug Breakfast', type: 'external', start: '9:30 AM', end: '11:00 AM', startH: 9.5, endH: 11, location: 'Silver Skillet (200 14th St NW)' },
+  { id: 'e3', name: 'The Drapery Room Tour | ai3', type: 'meeting', start: '10:00 AM', end: '12:00 PM', startH: 10, endH: 12, location: '1176 Franklin Gateway SE, Marietta' },
+];
+
+const TOMORROW_EVENTS = [
+  { name: 'Product Breakfast — Jerry Pair & Glant Textiles', start: '9:30 AM', end: '10:00 AM', type: 'meeting' },
+  { name: 'ai-TASKFORCE [In-person]', start: '10:00 AM', end: '10:30 AM', type: 'meeting' },
+  { name: 'Ceres Condo & Loft Interior Review', start: '1:30 PM', end: '2:30 PM', type: 'meeting' },
+  { name: 'Painted Pickle Happy Hour 🏓', start: '5:00 PM', end: '7:00 PM', type: 'social' },
+];
+
+// Outlook emails loaded live via Microsoft Graph
+let INBOX_EMAILS = [];
+
+// ─── STATE ────────────────────────────────────────────────────────────────
+let tasks = JSON.parse(localStorage.getItem('daylytasks') || '[]');
+let currentView = 'today';
+let calDate = new Date();
+let timerInterval = null;
+let timerSeconds = 25 * 60;
+let timerRunning = false;
+let focusTaskId = null;
+
+// ─── CLOCK ───────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  const t = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  document.getElementById('clock').textContent = t;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+function setHeaderDate() {
+  const now = new Date();
+  const d = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  document.getElementById('header-date').textContent = d;
+}
+setHeaderDate();
+
+// ─── TABS ────────────────────────────────────────────────────────────────
+const views = ['today', 'tasks', 'upcoming', 'focus', 'email', 'teams'];
+
+function switchTab(name) {
+  currentView = name;
+  views.forEach(v => {
+    document.getElementById('view-' + v).style.display = v === name ? '' : 'none';
+    const t = document.getElementById('tab-' + v);
+    if (t) t.classList.toggle('active', v === name);
+  });
+  document.querySelectorAll('.sidebar-item').forEach(el => {
+    el.classList.remove('active');
+    if (el.getAttribute('onclick') && el.getAttribute('onclick').includes("'" + name + "'")) {
+      el.classList.add('active');
+    }
+  });
+  if (name === 'tasks') renderTaskList();
+  if (name === 'upcoming') renderUpcoming();
+  if (name === 'focus') renderFocusView();
+  if (name === 'email') {
+    if (!emailsLoaded && GRAPH_CLIENT_ID) {
+      connectOutlook();
+    } else {
+      renderEmail();
+    }
+  }
+  if (name === 'teams') {
+    if (!teamsLoaded && GRAPH_CLIENT_ID) {
+      connectTeams();
+    } else {
+      renderTeams();
+    }
+  }
+}
+
+// ─── TIMELINE ────────────────────────────────────────────────────────────
+function nowHour() {
+  const n = new Date();
+  return n.getHours() + n.getMinutes() / 60;
+}
+
+function renderTimeline() {
+  const el = document.getElementById('timeline');
+  const hours = [8,9,10,11,12,13,14,15,16,17,18];
+  const now = nowHour();
+  let html = '';
+
+  // All-day events
+  const allday = TODAY_EVENTS.filter(e => e.isAllDay);
+  if (allday.length) {
+    html += `<div style="margin-bottom:12px;">
+      <div class="group-label" style="padding-top:0">All Day</div>`;
+    allday.forEach(e => {
+      html += `<div class="event-pill ep-allday" style="margin-bottom:6px;">
+        <div class="ep-name">${e.name}</div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  let nowInserted = false;
+
+  hours.forEach((h, i) => {
+    const label = h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`;
+    const eventsAtHour = TODAY_EVENTS.filter(e => !e.isAllDay && e.startH >= h && e.startH < h + 1);
+    const hasBusy = eventsAtHour.length > 0;
+    const past = h + 1 < now;
+    const isNowHour = h <= now && now < h + 1;
+    const dotClass = hasBusy ? 'busy' : (isNowHour ? 'now-dot' : '');
+
+    if (isNowHour && !nowInserted) {
+      html += `<div class="now-band"><div class="now-label">Now</div><div class="now-hr"></div></div>`;
+      nowInserted = true;
+    }
+
+    let content = '';
+    eventsAtHour.forEach(e => {
+      const pastEvt = e.endH <= now;
+      content += `<div class="event-pill ep-${e.type} ${pastEvt ? 'past' : ''}" style="margin-bottom:6px;">
+        <div class="ep-name">${e.name}</div>
+        <div class="ep-meta">
+          <span>${e.start} – ${e.end}</span>
+          ${e.location ? `<span class="ep-dot"></span><span>📍 ${e.location}</span>` : ''}
+        </div>
+      </div>`;
+    });
+
+    html += `<div class="timeline-row">
+      <div class="tl-time">${label}</div>
+      <div class="tl-track">
+        <div class="tl-dot ${dotClass} ${past && !hasBusy ? '' : ''}"></div>
+        ${i < hours.length - 1 ? '<div class="tl-line"></div>' : ''}
+      </div>
+      <div class="tl-content">${content}</div>
+    </div>`;
+  });
+
+  el.innerHTML = html;
+}
+
+// ─── TOMORROW ────────────────────────────────────────────────────────────
+function renderTomorrow() {
+  const el = document.getElementById('tomorrow-list');
+  const colors = { meeting: 'var(--accent)', social: 'var(--orange)', external: 'var(--green)', allday: 'var(--purple)' };
+  el.innerHTML = TOMORROW_EVENTS.map(e => `
+    <div class="uc-event">
+      <div class="uc-stripe" style="background:${colors[e.type] || 'var(--accent)'}"></div>
+      <div class="uc-body">
+        <div class="uc-name">${e.name}</div>
+        <div class="uc-time">${e.start}${e.end ? ' – ' + e.end : ''}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ─── MINI CALENDAR ───────────────────────────────────────────────────────
+function renderCal() {
+  const y = calDate.getFullYear(), m = calDate.getMonth();
+  document.getElementById('cal-month-label').textContent =
+    new Date(y, m, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+
+  const first = new Date(y, m, 1).getDay();
+  const days = new Date(y, m + 1, 0).getDate();
+  const today = new Date();
+  const dows = ['S','M','T','W','T','F','S'];
+  let html = dows.map(d => `<div class="cal-dow">${d}</div>`).join('');
+
+  for (let i = 0; i < first; i++) {
+    const prevDay = new Date(y, m, -first + i + 1).getDate();
+    html += `<div class="cal-day other-month">${prevDay}</div>`;
+  }
+  for (let d = 1; d <= days; d++) {
+    const isToday = d === today.getDate() && m === today.getMonth() && y === today.getFullYear();
+    html += `<div class="cal-day ${isToday ? 'today' : ''}">${d}</div>`;
+  }
+  document.getElementById('cal-grid').innerHTML = html;
+}
+
+function prevMonth() { calDate.setMonth(calDate.getMonth() - 1); renderCal(); }
+function nextMonth() { calDate.setMonth(calDate.getMonth() + 1); renderCal(); }
+
+// ─── TASKS ───────────────────────────────────────────────────────────────
+function saveTasks() {
+  localStorage.setItem('daylytasks', JSON.stringify(tasks));
+  updateBadges();
+  updateFocusBanner();
+}
+
+function addTask() {
+  const inp = document.getElementById('task-input');
+  const pri = document.getElementById('task-pri').value;
+  const label = inp.value.trim();
+  if (!label) return;
+  tasks.unshift({ id: Date.now(), label, pri, done: false, created: new Date().toISOString() });
+  inp.value = '';
+  saveTasks();
+  renderTaskList();
+}
+
+function taskKeydown(e) { if (e.key === 'Enter') addTask(); }
+
+function toggleTask(id) {
+  const t = tasks.find(t => t.id === id);
+  if (t) t.done = !t.done;
+  saveTasks();
+  renderTaskList();
+}
+
+function deleteTask(id) {
+  tasks = tasks.filter(t => t.id !== id);
+  saveTasks();
+  renderTaskList();
+}
+
+function renderTaskList() {
+  const el = document.getElementById('task-list');
+  if (!tasks.length) { el.innerHTML = '<div class="empty-state">No tasks yet. Add one above.</div>'; return; }
+  const priOrder = { high: 0, med: 1, low: 2 };
+  const sorted = [...tasks].sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    return priOrder[a.pri] - priOrder[b.pri];
+  });
+  el.innerHTML = sorted.map(t => `
+    <div class="task-card ${t.done ? 'done' : ''}" id="task-${t.id}">
+      <div class="task-check" onclick="toggleTask(${t.id})">${t.done ? '✓' : ''}</div>
+      <div class="task-label">${t.label}</div>
+      <div class="task-pri pri-${t.pri}">${t.pri}</div>
+      <button class="task-del" onclick="deleteTask(${t.id})">✕</button>
+    </div>`).join('');
+}
+
+// ─── UPCOMING ────────────────────────────────────────────────────────────
+function renderUpcoming() {
+  const el = document.getElementById('upcoming-list');
+  const colors = { meeting: 'var(--accent)', social: 'var(--orange)', external: 'var(--green)', allday: 'var(--purple)' };
+
+  const todayLabel = '<div class="group-label" style="padding:0 0 8px">Today — April 29</div>';
+  const todayRows = TODAY_EVENTS.map(e => `
+    <div class="uc-event" style="border:1px solid var(--border);border-radius:8px;margin-bottom:6px;">
+      <div class="uc-stripe" style="background:${colors[e.type]||'var(--accent)'}"></div>
+      <div class="uc-body">
+        <div class="uc-name">${e.name}</div>
+        <div class="uc-time">${e.isAllDay ? 'All Day' : e.start + ' – ' + e.end}</div>
+      </div>
+    </div>`).join('');
+
+  const tmrLabel = '<div class="group-label">Tomorrow — April 30</div>';
+  const tmrRows = TOMORROW_EVENTS.map(e => `
+    <div class="uc-event" style="border:1px solid var(--border);border-radius:8px;margin-bottom:6px;">
+      <div class="uc-stripe" style="background:${colors[e.type]||'var(--accent)'}"></div>
+      <div class="uc-body">
+        <div class="uc-name">${e.name}</div>
+        <div class="uc-time">${e.start} – ${e.end}</div>
+      </div>
+    </div>`).join('');
+
+  el.innerHTML = todayLabel + todayRows + tmrLabel + tmrRows;
+}
+
+// ─── FOCUS VIEW ───────────────────────────────────────────────────────────
+function renderFocusView() {
+  const highTasks = tasks.filter(t => !t.done && t.pri === 'high');
+  const medTasks  = tasks.filter(t => !t.done && t.pri !== 'high');
+  const all = [...highTasks, ...medTasks];
+
+  const el = document.getElementById('focus-task-list');
+  if (!all.length) {
+    el.innerHTML = '<div class="empty-state">No pending tasks. Add some in Tasks.</div>';
+    return;
+  }
+  el.innerHTML = all.map(t => `
+    <div class="uc-event" style="cursor:pointer" onclick="selectFocusTask(${t.id})">
+      <div class="uc-stripe" style="background:${t.pri==='high'?'var(--red)':t.pri==='med'?'var(--orange)':'var(--green)'}"></div>
+      <div class="uc-body">
+        <div class="uc-name">${t.label}</div>
+        <div class="uc-time">${t.pri.toUpperCase()} priority</div>
+      </div>
+    </div>`).join('');
+
+  if (!focusTaskId && all.length) selectFocusTask(all[0].id, true);
+}
+
+function selectFocusTask(id, quiet) {
+  focusTaskId = id;
+  const t = tasks.find(t => t.id === id);
+  if (t) document.getElementById('focus-current-task').textContent = t.label;
+  if (!quiet) resetTimer();
+}
+
+// ─── TIMER ────────────────────────────────────────────────────────────────
+function formatTimer(s) {
+  const m = Math.floor(s / 60).toString().padStart(2, '0');
+  const sec = (s % 60).toString().padStart(2, '0');
+  return `${m}:${sec}`;
+}
+
+function toggleTimer() {
+  timerRunning = !timerRunning;
+  const btn = document.getElementById('focus-start-btn');
+  if (timerRunning) {
+    btn.textContent = '⏸ Pause';
+    timerInterval = setInterval(() => {
+      timerSeconds--;
+      document.getElementById('focus-timer').textContent = formatTimer(timerSeconds);
+      if (timerSeconds <= 0) { clearInterval(timerInterval); timerRunning = false; btn.textContent = '▶ Start'; timerSeconds = 25*60; }
+    }, 1000);
+  } else {
+    clearInterval(timerInterval);
+    btn.textContent = '▶ Start';
+  }
+}
+
+function resetTimer() {
+  clearInterval(timerInterval);
+  timerRunning = false;
+  timerSeconds = 25 * 60;
+  const btn = document.getElementById('focus-start-btn');
+  if (btn) btn.textContent = '▶ Start';
+  const el = document.getElementById('focus-timer');
+  if (el) el.textContent = '25:00';
+}
+
+// ─── OUTLOOK / GRAPH EMAIL ──────────────────────────────────────────────────
+
+// ── Microsoft Graph OAuth config ──────────────────────────────────────────
+// Register an app at https://portal.azure.com → Azure Active Directory →
+// App registrations → New → Redirect URI = the full path to this HTML file
+// (e.g. file:///…/ai3-day-organizer.html  OR  http://localhost:PORT/…)
+// Grant delegated permissions: Mail.Read, Mail.Send
+// Then paste your Application (client) ID below.
+const GRAPH_CLIENT_ID = localStorage.getItem('graph_client_id') || '';
+const GRAPH_SCOPES    = ['Mail.Read', 'Mail.Send', 'Chat.Read', 'Chat.ReadWrite', 'ChannelMessage.Read.All', 'Calendars.Read', 'offline_access', 'openid', 'profile'];
+const GRAPH_REDIRECT  = window.location.href.split('?')[0].split('#')[0];
+
+let msalApp = null;
+let graphToken = null;
+
+async function initMsal() {
+  if (!window.msal) return false;
+  if (!GRAPH_CLIENT_ID) return false;
+  if (msalApp) return true;
+  try {
+    msalApp = new msal.PublicClientApplication({
+      auth: { clientId: GRAPH_CLIENT_ID, redirectUri: GRAPH_REDIRECT },
+      cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false }
+    });
+    await msalApp.initialize();
+    return true;
+  } catch(e) { console.error('MSAL init failed', e); return false; }
+}
+
+async function getGraphToken() {
+  if (graphToken) return graphToken;
+  const ready = await initMsal();
+  if (!ready) return null;
+  // Try silent first
+  const accounts = msalApp.getAllAccounts();
+  if (accounts.length) {
+    try {
+      const res = await msalApp.acquireTokenSilent({ scopes: GRAPH_SCOPES, account: accounts[0] });
+      graphToken = res.accessToken;
+      return graphToken;
+    } catch(e) { /* fall through to popup */ }
+  }
+  // Popup login
+  try {
+    const res = await msalApp.acquireTokenPopup({ scopes: GRAPH_SCOPES });
+    graphToken = res.accessToken;
+    return graphToken;
+  } catch(e) { console.error('Token error', e); return null; }
+}
+
+async function graphFetch(path) {
+  const token = await getGraphToken();
+  if (!token) throw new Error('No token');
+  const r = await fetch('https://graph.microsoft.com/v1.0' + path, {
+    headers: { Authorization: 'Bearer ' + token }
+  });
+  if (!r.ok) throw new Error('Graph ' + r.status);
+  return r.json();
+}
+
+// ── Email state ────────────────────────────────────────────────────────────
+const tagColors   = { Finance:'var(--red)', Security:'var(--red)', Admin:'var(--text3)', BD:'var(--purple)', Acquisition:'var(--purple)', Project:'var(--accent)', Team:'var(--green)', Tools:'var(--orange)', Personal:'var(--green)' };
+const priColors   = { action:'rgba(255,69,58,0.12)', review:'rgba(10,132,255,0.07)', low:'transparent' };
+const priBorder   = { action:'rgba(255,69,58,0.3)', review:'rgba(10,132,255,0.18)', low:'var(--border)' };
+
+let emailFilter      = 'all';
+let selectedEmailIdx = null;
+let dismissedEmails  = new Set();
+let emailsLoaded     = false;
+
+// ── Auth / connect UI ──────────────────────────────────────────────────────
+function showEmailConnect() {
+  const clientId = localStorage.getItem('graph_client_id') || '';
+  document.getElementById('email-list').innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:480px;margin:0 auto;">
+      <div style="font-size:18px;margin-bottom:6px;">📬 Connect Outlook</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6;">
+        Sign in with your Microsoft account to load your real Outlook inbox.<br><br>
+        <strong>One-time setup:</strong><br>
+        1. Go to <a href="https://portal.azure.com" target="_blank" style="color:var(--accent)">portal.azure.com</a> → Azure AD → App registrations → New registration<br>
+        2. Set redirect URI to: <code style="font-size:10px;background:var(--surface2);padding:2px 5px;border-radius:3px;word-break:break-all;">${GRAPH_REDIRECT}</code><br>
+        3. Grant delegated permissions: <code style="font-size:10px;background:var(--surface2);padding:2px 5px;border-radius:3px;">Mail.Read</code> <code style="font-size:10px;background:var(--surface2);padding:2px 5px;border-radius:3px;">Mail.Send</code><br>
+        4. Paste your Application (client) ID below:
+      </div>
+      <input id="graph-client-id-input" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        value="${clientId}"
+        style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;color:var(--text);font-family:inherit;font-size:12px;outline:none;margin-bottom:10px;" />
+      <div style="display:flex;gap:8px;">
+        <button class="fb-btn" onclick="saveClientIdAndConnect()" style="flex:1;text-align:center;">Sign in with Microsoft</button>
+        ${clientId ? '<button class="fb-btn" onclick="connectOutlook()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text2);">Use saved ID</button>' : ''}
+      </div>
+      <div id="graph-connect-error" style="margin-top:10px;font-size:11px;color:var(--red);display:none;"></div>
+    </div>`;
+}
+
+function saveClientIdAndConnect() {
+  const val = (document.getElementById('graph-client-id-input').value || '').trim();
+  if (!val) { showConnectError('Please enter a client ID.'); return; }
+  localStorage.setItem('graph_client_id', val);
+  location.reload(); // reload so GRAPH_CLIENT_ID const picks up new value
+}
+
+function showConnectError(msg) {
+  const el = document.getElementById('graph-connect-error');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+
+// ── Load & triage inbox via Graph ──────────────────────────────────────────
+async function connectOutlook() {
+  setEmailLoading(true);
+  try {
+    const token = await getGraphToken();
+    if (!token) { setEmailLoading(false); showEmailConnect(); return; }
+    await fetchOutlookInbox();
+  } catch(e) {
+    setEmailLoading(false);
+    showConnectError('Sign-in failed: ' + e.message);
+    showEmailConnect();
+  }
+}
+
+async function fetchOutlookInbox() {
+  setEmailLoading(true);
+  try {
+    const data = await graphFetch(
+      "/me/mailFolders/inbox/messages?$top=30&$orderby=receivedDateTime desc" +
+      "&$select=id,subject,from,receivedDateTime,isRead,importance,bodyPreview,hasAttachments"
+    );
+    const raw = data.value || [];
+    // Run AI triage in the background to categorise
+    INBOX_EMAILS = raw.map(m => ({
+      id: m.id,
+      from: m.from?.emailAddress?.name || m.from?.emailAddress?.address || 'Unknown',
+      fromEmail: m.from?.emailAddress?.address || '',
+      subject: m.subject || '(No subject)',
+      time: formatEmailTime(m.receivedDateTime),
+      unread: !m.isRead,
+      preview: m.bodyPreview || '',
+      hasAttachments: m.hasAttachments,
+      importance: m.importance,
+      tag: guessTag(m),
+      priority: guessPriority(m),
+      note: m.bodyPreview ? m.bodyPreview.slice(0, 120) + '…' : ''
+    }));
+    emailsLoaded = true;
+    setEmailLoading(false);
+    renderEmail();
+    updateBadges();
+    document.getElementById('outlook-dot').style.background = 'var(--green)';
+    document.getElementById('outlook-status').textContent = 'Outlook — ' + INBOX_EMAILS.length + ' emails';
+    // Kick off AI triage silently
+    aiTriageInbox();
+  } catch(e) {
+    setEmailLoading(false);
+    showConnectError('Failed to load inbox: ' + e.message);
+  }
+}
+
+function formatEmailTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const now = new Date();
+  const diffH = (now - d) / 3600000;
+  if (diffH < 24 && d.toDateString() === now.toDateString())
+    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  if (diffH < 48) return 'Yesterday';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// Simple heuristic tag/priority — refined by AI triage
+const AI3_SENDERS = ['ai3online.com'];
+const FINANCE_KEYWORDS = ['invoice', 'payment', 'check', 'bank', 'amex', 'pnc', 'chase', 'autodesk invoice', 'finance'];
+const PROJECT_KEYWORDS = ['ceres', 'dragonfly', 'perlant', 'lime', 'renovation', 'design', 'schematic', 'construction'];
+const ACQUISITION_KEYWORDS = ['cove', 'loi', 'acquisition', 'timeline', 'term'];
+
+function guessTag(m) {
+  const text = ((m.subject || '') + ' ' + (m.bodyPreview || '') + ' ' + (m.from?.emailAddress?.address || '')).toLowerCase();
+  if (AI3_SENDERS.some(d => (m.from?.emailAddress?.address || '').includes(d))) return 'Team';
+  if (ACQUISITION_KEYWORDS.some(k => text.includes(k))) return 'Acquisition';
+  if (PROJECT_KEYWORDS.some(k => text.includes(k))) return 'Project';
+  if (FINANCE_KEYWORDS.some(k => text.includes(k))) return 'Finance';
+  return 'Admin';
+}
+
+function guessPriority(m) {
+  if (m.importance === 'high') return 'action';
+  const text = ((m.subject || '') + ' ' + (m.bodyPreview || '')).toLowerCase();
+  const actionWords = ['please', 'urgent', 'action required', 'need your', 'invoice', 'loi', 'need help', 'respond', 'asap'];
+  if (actionWords.some(k => text.includes(k))) return 'action';
+  if (!m.isRead) return 'review';
+  return 'low';
+}
+
+// ── AI triage: call Anthropic to enrich tags/priority/notes ───────────────
+async function aiTriageInbox() {
+  const apiKey = localStorage.getItem('anthropic_api_key') || '';
+  if (!apiKey || !INBOX_EMAILS.length) return;
+  const summary = INBOX_EMAILS.slice(0, 15).map((e, i) =>
+    `${i}: from=${e.from} | subject=${e.subject} | preview=${e.note}`
+  ).join('\n');
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1200,
+        messages: [{
+          role: 'user',
+          content: `You are an executive assistant for Patrick Johnson, Principal at ai3 architecture firm in Atlanta. Triage these Outlook emails. For each, return JSON array with index, tag (one of: Team/Project/Finance/Acquisition/BD/Admin/Personal/Tools), priority (action/review/low), note (1 sentence, what Patrick needs to do or know). Respond ONLY with a JSON array, no markdown.\n\nEmails:\n${summary}`
+        }]
+      })
+    });
+    const data = await res.json();
+    const text = (data.content?.[0]?.text || '').trim().replace(/^```json|```$/g, '');
+    const triaged = JSON.parse(text);
+    triaged.forEach(t => {
+      if (INBOX_EMAILS[t.index]) {
+        INBOX_EMAILS[t.index].tag = t.tag || INBOX_EMAILS[t.index].tag;
+        INBOX_EMAILS[t.index].priority = t.priority || INBOX_EMAILS[t.index].priority;
+        INBOX_EMAILS[t.index].note = t.note || INBOX_EMAILS[t.index].note;
+      }
+    });
+    renderEmail();
+    updateBadges();
+  } catch(e) { console.warn('AI triage failed', e); }
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function setEmailLoading(on) {
+  document.getElementById('ai-loading').style.display = on ? 'block' : 'none';
+}
+
+function filterEmails(f) {
+  emailFilter = f;
+  document.querySelectorAll('.email-filter-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderEmail();
+}
+
+function renderEmail() {
+  const el = document.getElementById('email-list');
+
+  // Not connected yet
+  if (!GRAPH_CLIENT_ID) { showEmailConnect(); return; }
+
+  // Connected but not loaded yet
+  if (!emailsLoaded) {
+    el.innerHTML = `<div style="text-align:center;padding:30px;">
+      <button class="fb-btn" onclick="connectOutlook()" style="font-size:13px;padding:10px 20px;">📬 Load Outlook Inbox</button>
+    </div>`;
+    return;
+  }
+
+  let emails = INBOX_EMAILS.filter((_, i) => !dismissedEmails.has(i));
+  if (emailFilter === 'action') emails = emails.filter(e => e.priority === 'action');
+  if (emailFilter === 'review') emails = emails.filter(e => e.priority === 'review');
+
+  if (!emails.length) {
+    el.innerHTML = '<div class="empty-state">Inbox clear for this filter 🎉</div>';
+    return;
+  }
+
+  el.innerHTML = emails.map(e => {
+    const realIdx = INBOX_EMAILS.indexOf(e);
+    const isSelected = selectedEmailIdx === realIdx;
+    const priIcon = e.priority === 'action' ? '⚡' : e.priority === 'review' ? '👁' : '—';
+    const tagColor = tagColors[e.tag] || 'var(--surface3)';
+    const tagTextColor = (e.tag === 'Admin' || e.tag === 'Personal') ? 'var(--text2)' : '#fff';
+    return `<div class="uc-event ${isSelected ? 'email-selected' : ''}"
+      onclick="selectEmail(${realIdx})"
+      style="border:1px solid ${priBorder[e.priority]||'var(--border)'};border-radius:8px;margin-bottom:6px;
+             background:${priColors[e.priority]||'transparent'};flex-direction:column;padding:10px 14px;cursor:pointer;">
+      <div style="display:flex;align-items:center;gap:8px;width:100%;">
+        <div style="width:6px;height:6px;border-radius:50%;flex-shrink:0;
+          background:${e.unread ? 'var(--accent)' : 'transparent'};
+          border:${e.unread ? 'none' : '1px solid var(--border2)'};"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap;">
+            <span style="font-size:13px;font-weight:${e.unread ? '600' : '400'};color:var(--text);">${e.from}</span>
+            <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${tagColor};color:${tagTextColor};opacity:0.85">${e.tag}</span>
+            <span style="font-size:10px;color:${e.priority==='action'?'var(--red)':e.priority==='review'?'var(--accent)':'var(--text3)'};">${priIcon}</span>
+            ${e.hasAttachments ? '<span style="font-size:10px;color:var(--text3);">📎</span>' : ''}
+          </div>
+          <div style="font-size:11px;color:${e.unread?'var(--text2)':'var(--text3)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${e.subject}</div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);flex-shrink:0;">${e.time}</div>
+      </div>
+      ${e.note ? `<div style="font-size:11px;color:var(--text3);margin-top:6px;line-height:1.5;
+        border-left:2px solid ${e.priority==='action'?'var(--red)':e.priority==='review'?'var(--accent)':'var(--border)'};
+        padding-left:8px;">${e.note}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function selectEmail(idx) {
+  selectedEmailIdx = idx;
+  const e = INBOX_EMAILS[idx];
+  document.getElementById('email-detail').style.display = 'block';
+  document.getElementById('detail-from').textContent = `${e.from}${e.fromEmail ? '  <' + e.fromEmail + '>' : ''}`;
+  document.getElementById('detail-subject').textContent = e.subject;
+  document.getElementById('detail-note').textContent = e.note || e.preview || 'No preview available.';
+  document.getElementById('draft-area').style.display = 'none';
+  document.getElementById('draft-text').value = '';
+  renderEmail();
+  document.getElementById('email-detail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeDetail() {
+  selectedEmailIdx = null;
+  document.getElementById('email-detail').style.display = 'none';
+  renderEmail();
+}
+
+function markDone() {
+  if (selectedEmailIdx !== null) {
+    dismissedEmails.add(selectedEmailIdx);
+    closeDetail();
+    updateBadges();
+  }
+}
+
+async function draftReply() {
+  if (selectedEmailIdx === null) return;
+  const e = INBOX_EMAILS[selectedEmailIdx];
+  const draftArea = document.getElementById('draft-area');
+  const draftText = document.getElementById('draft-text');
+  draftArea.style.display = 'block';
+  draftText.value = 'Generating draft…';
+  const apiKey = localStorage.getItem('anthropic_api_key') || '';
+  if (!apiKey) {
+    draftText.value = 'Add your Anthropic API key to localStorage (key: anthropic_api_key) to enable AI drafts.';
+    return;
+  }
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 400,
+        messages: [{ role: 'user', content:
+          `Draft a brief professional email reply for Patrick Johnson (Principal, ai3 architecture firm, Atlanta) to this email. Be concise and direct. Reply only with the email body, no subject line.\n\nFrom: ${e.from} <${e.fromEmail}>\nSubject: ${e.subject}\nPreview: ${e.preview}` }]
+      })
+    });
+    const data = await res.json();
+    draftText.value = data.content?.[0]?.text || 'Could not generate draft.';
+  } catch(err) {
+    draftText.value = 'Error: ' + err.message;
+  }
+}
+
+function copyDraft() {
+  navigator.clipboard.writeText(document.getElementById('draft-text').value).then(() => {
+    const btn = event.target;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy Draft', 1500);
+  });
+}
+
+async function refreshEmailSummary() {
+  const btn = document.getElementById('ai-triage-btn');
+  const banner = document.getElementById('ai-summary-banner');
+  const loading = document.getElementById('ai-loading');
+  const summaryText = document.getElementById('ai-summary-text');
+  const summaryTime = document.getElementById('ai-summary-time');
+
+  // If not connected yet, trigger connect flow
+  if (!emailsLoaded) { connectOutlook(); return; }
+
+  btn.textContent = '⟳ Analyzing…';
+  btn.style.pointerEvents = 'none';
+  loading.style.display = 'block';
+  banner.style.display = 'none';
+
+  const apiKey = localStorage.getItem('anthropic_api_key') || '';
+  if (!apiKey) {
+    loading.style.display = 'none';
+    banner.style.display = 'block';
+    summaryText.textContent = 'Add your Anthropic API key to localStorage (key: anthropic_api_key) to enable AI triage.';
+    btn.textContent = '✦ AI Triage'; btn.style.pointerEvents = '';
+    return;
+  }
+
+  const emailSummary = INBOX_EMAILS.slice(0, 15).map((e,i) =>
+    `${i+1}. From: ${e.from} | ${e.subject} | Priority: ${e.priority} | ${e.note}`
+  ).join('\n');
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 300,
+        messages: [{ role: 'user', content:
+          `You are an executive assistant. Summarize these Outlook emails for Patrick Johnson (Principal at ai3 architecture firm) in 2-3 sentences. Focus on what needs action today, flag the most time-sensitive item, and note anything he can ignore.\n\nEmails:\n${emailSummary}` }]
+      })
+    });
+    const data = await res.json();
+    loading.style.display = 'none';
+    banner.style.display = 'block';
+    summaryText.textContent = data.content?.[0]?.text || 'Could not generate summary.';
+    summaryTime.textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  } catch(err) {
+    loading.style.display = 'none';
+    banner.style.display = 'block';
+    summaryText.textContent = 'Error: ' + err.message;
+  }
+  btn.textContent = '✦ AI Triage'; btn.style.pointerEvents = '';
+}
+
+// ─── TEAMS ───────────────────────────────────────────────────────────────
+
+let teamsData     = { chats: [], mentions: [], meetings: [] };
+let teamsLoaded   = false;
+let teamsFilter   = 'chats';
+let selectedTeamsIdx = null;
+
+async function connectTeams() {
+  document.getElementById('teams-loading').style.display = 'block';
+  document.getElementById('teams-list').innerHTML = '';
+  try {
+    const token = await getGraphToken();
+    if (!token) { document.getElementById('teams-loading').style.display = 'none'; showTeamsConnect(); return; }
+    await fetchTeamsData();
+  } catch(e) {
+    document.getElementById('teams-loading').style.display = 'none';
+    document.getElementById('teams-list').innerHTML =
+      `<div class="empty-state" style="color:var(--red);">Teams error: ${e.message}</div>`;
+  }
+}
+
+async function fetchTeamsData() {
+  document.getElementById('teams-loading').style.display = 'block';
+  try {
+    // Fetch in parallel: chats, @mentions, upcoming meetings
+    const [chatsRes, mentionsRes, meetingsRes] = await Promise.allSettled([
+      graphFetch('/me/chats?$expand=members&$top=20&$orderby=lastMessagePreview/createdDateTime desc'),
+      graphFetch("/me/messages?$filter=mentionedMe eq true&$top=15&$orderby=receivedDateTime desc&$select=id,subject,from,receivedDateTime,bodyPreview,webLink"),
+      graphFetch("/me/calendarView?startDateTime=" + encodeURIComponent(new Date().toISOString()) +
+        "&endDateTime=" + encodeURIComponent(new Date(Date.now() + 7*24*3600*1000).toISOString()) +
+        "&$filter=isOnlineMeeting eq true&$select=subject,start,end,joinUrl,organizer,attendees&$top=10&$orderby=start/dateTime")
+    ]);
+
+    // Chats
+    if (chatsRes.status === 'fulfilled') {
+      const chats = chatsRes.value.value || [];
+      // For each chat get last message preview
+      teamsData.chats = await Promise.all(chats.map(async c => {
+        let preview = c.lastMessagePreview?.body?.content || '';
+        // strip HTML tags
+        preview = preview.replace(/<[^>]*>/g, '').slice(0, 140);
+        const sender = c.lastMessagePreview?.from?.user?.displayName || '';
+        const others = (c.members || [])
+          .filter(m => !m.displayName?.includes('Patrick') && m.displayName)
+          .map(m => m.displayName).join(', ') || c.topic || 'Unknown';
+        return {
+          id: c.id,
+          type: c.chatType,
+          name: c.topic || others,
+          sender,
+          preview,
+          time: formatEmailTime(c.lastMessagePreview?.createdDateTime),
+          unread: false, // Graph chat unread requires separate call
+          webUrl: `https://teams.microsoft.com/l/chat/${c.id}/0`
+        };
+      }));
+    }
+
+    // @Mentions (from mail — Teams sends mention notifications via email too)
+    if (mentionsRes.status === 'fulfilled') {
+      teamsData.mentions = (mentionsRes.value.value || []).map(m => ({
+        id: m.id,
+        from: m.from?.emailAddress?.name || m.from?.emailAddress?.address || 'Unknown',
+        subject: m.subject || '(No subject)',
+        preview: (m.bodyPreview || '').slice(0, 160),
+        time: formatEmailTime(m.receivedDateTime),
+        webUrl: m.webLink
+      }));
+    }
+
+    // Meetings
+    if (meetingsRes.status === 'fulfilled') {
+      teamsData.meetings = (meetingsRes.value.value || []).map(m => ({
+        id: m.id,
+        subject: m.subject || 'Meeting',
+        start: m.start?.dateTime,
+        end: m.end?.dateTime,
+        organizer: m.organizer?.emailAddress?.name || '',
+        attendeeCount: (m.attendees || []).length,
+        joinUrl: m.joinUrl
+      }));
+    }
+
+    teamsLoaded = true;
+    document.getElementById('teams-loading').style.display = 'none';
+    renderTeams();
+    updateBadges();
+  } catch(e) {
+    document.getElementById('teams-loading').style.display = 'none';
+    document.getElementById('teams-list').innerHTML =
+      `<div class="empty-state" style="color:var(--red);">Failed to load Teams: ${e.message}</div>`;
+  }
+}
+
+function showTeamsConnect() {
+  document.getElementById('teams-list').innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:480px;margin:0 auto;text-align:center;">
+      <div style="font-size:32px;margin-bottom:10px;">💬</div>
+      <div style="font-size:15px;font-weight:600;margin-bottom:6px;">Connect Microsoft Teams</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6;">
+        Uses the same Microsoft account as Outlook.<br>
+        First connect Outlook via the Email tab, then return here.
+      </div>
+      <button class="fb-btn" onclick="switchTab('email')" style="margin:0 auto;">Go to Email → Connect Outlook first</button>
+    </div>`;
+}
+
+function filterTeams(f) {
+  teamsFilter = f;
+  ['chats','mentions','meetings'].forEach(k => {
+    document.getElementById('teams-filter-' + k)?.classList.toggle('active', k === f);
+  });
+  renderTeams();
+}
+
+function renderTeams() {
+  const el = document.getElementById('teams-list');
+
+  if (!GRAPH_CLIENT_ID) { showTeamsConnect(); return; }
+  if (!teamsLoaded) {
+    el.innerHTML = `<div style="text-align:center;padding:30px;">
+      <button class="fb-btn" onclick="connectTeams()" style="font-size:13px;padding:10px 20px;">💬 Load Teams</button>
+    </div>`;
+    return;
+  }
+
+  if (teamsFilter === 'chats') renderTeamsChats(el);
+  else if (teamsFilter === 'mentions') renderTeamsMentions(el);
+  else renderTeamsMeetings(el);
+}
+
+function teamsCard(opts) {
+  // opts: { idx, icon, title, subtitle, preview, time, accent, badge, onclick }
+  return `<div class="uc-event" onclick="${opts.onclick}"
+    style="border:1px solid var(--border);border-radius:8px;margin-bottom:6px;
+           flex-direction:column;padding:10px 14px;cursor:pointer;
+           background:${opts.selected ? 'var(--accent-dim)' : 'transparent'};">
+    <div style="display:flex;align-items:center;gap:8px;width:100%;">
+      <div style="font-size:16px;flex-shrink:0;">${opts.icon}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+          <span style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${opts.title}</span>
+          ${opts.badge ? `<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:#6264a7;color:#fff;">${opts.badge}</span>` : ''}
+        </div>
+        <div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${opts.subtitle}</div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);flex-shrink:0;">${opts.time}</div>
+    </div>
+    ${opts.preview ? `<div style="font-size:11px;color:var(--text3);margin-top:6px;line-height:1.5;
+      border-left:2px solid #6264a7;padding-left:8px;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${opts.preview}</div>` : ''}
+  </div>`;
+}
+
+function renderTeamsChats(el) {
+  if (!teamsData.chats.length) { el.innerHTML = '<div class="empty-state">No recent chats.</div>'; return; }
+  el.innerHTML = teamsData.chats.map((c, i) => teamsCard({
+    idx: i, icon: c.type === 'group' ? '👥' : '💬',
+    title: c.name, subtitle: c.sender ? `${c.sender}: ${c.preview}` : c.preview,
+    preview: '', time: c.time,
+    badge: c.type === 'group' ? 'Group' : '',
+    onclick: `selectTeamsItem('chat', ${i})`
+  })).join('');
+}
+
+function renderTeamsMentions(el) {
+  if (!teamsData.mentions.length) { el.innerHTML = '<div class="empty-state">No recent @mentions.</div>'; return; }
+  el.innerHTML = teamsData.mentions.map((m, i) => teamsCard({
+    idx: i, icon: '@',
+    title: m.from, subtitle: m.subject,
+    preview: m.preview, time: m.time,
+    badge: 'Mention',
+    onclick: `selectTeamsItem('mention', ${i})`
+  })).join('');
+}
+
+function renderTeamsMeetings(el) {
+  if (!teamsData.meetings.length) { el.innerHTML = '<div class="empty-state">No upcoming Teams meetings this week.</div>'; return; }
+  el.innerHTML = teamsData.meetings.map((m, i) => {
+    const start = new Date(m.start);
+    const end = new Date(m.end);
+    const timeStr = start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) +
+      ' · ' + start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) +
+      ' – ' + end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const isNow = start <= new Date() && new Date() <= end;
+    return teamsCard({
+      idx: i, icon: isNow ? '🔴' : '📹',
+      title: m.subject,
+      subtitle: (m.organizer ? `Organizer: ${m.organizer}` : '') + (m.attendeeCount ? `  ·  ${m.attendeeCount} attendees` : ''),
+      preview: '', time: formatEmailTime(m.start),
+      badge: isNow ? 'Live now' : '',
+      onclick: `selectTeamsItem('meeting', ${i})`
+    }) + (m.joinUrl ? `<div style="text-align:right;margin-top:-2px;margin-bottom:8px;">
+      <a href="${m.joinUrl}" target="_blank" style="font-size:11px;color:#6264a7;font-weight:600;text-decoration:none;">Join meeting →</a>
+    </div>` : '');
+  }).join('');
+}
+
+function selectTeamsItem(type, idx) {
+  const detail = document.getElementById('teams-detail');
+  const fromEl = document.getElementById('teams-detail-from');
+  const ctxEl  = document.getElementById('teams-detail-context');
+  const bodyEl = document.getElementById('teams-detail-body');
+  document.getElementById('teams-reply-area').style.display = 'none';
+  document.getElementById('teams-reply-text').value = '';
+
+  if (type === 'chat') {
+    const c = teamsData.chats[idx];
+    fromEl.textContent = c.name;
+    ctxEl.textContent = c.type === 'group' ? 'Group chat' : '1:1 chat';
+    bodyEl.textContent = c.preview || 'No preview available.';
+  } else if (type === 'mention') {
+    const m = teamsData.mentions[idx];
+    fromEl.textContent = m.from;
+    ctxEl.textContent = m.subject;
+    bodyEl.textContent = m.preview;
+  } else {
+    const m = teamsData.meetings[idx];
+    const start = new Date(m.start);
+    fromEl.textContent = m.subject;
+    ctxEl.textContent = start.toLocaleString('en-US', { weekday: 'long', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    bodyEl.innerHTML = m.joinUrl
+      ? `Organizer: ${m.organizer || 'Unknown'}<br>${m.attendeeCount} attendees<br><br><a href="${m.joinUrl}" target="_blank" style="color:#6264a7;font-weight:600;">Join Microsoft Teams Meeting →</a>`
+      : `Organizer: ${m.organizer || 'Unknown'}<br>${m.attendeeCount} attendees`;
+  }
+  detail.style.display = 'block';
+  detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeTeamsDetail() {
+  document.getElementById('teams-detail').style.display = 'none';
+}
+
+async function teamsAiReply() {
+  const bodyEl = document.getElementById('teams-detail-body');
+  const fromEl = document.getElementById('teams-detail-from');
+  const replyArea = document.getElementById('teams-reply-area');
+  const replyText = document.getElementById('teams-reply-text');
+  replyArea.style.display = 'block';
+  replyText.value = 'Generating reply…';
+
+  const apiKey = localStorage.getItem('anthropic_api_key') || '';
+  if (!apiKey) { replyText.value = 'Set anthropic_api_key in localStorage to enable AI replies.'; return; }
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 300,
+        messages: [{ role: 'user', content:
+          `Draft a brief, direct Teams chat reply for Patrick Johnson (Principal, ai3 architecture firm, Atlanta). Keep it conversational — this is a chat message, not an email. 2-4 sentences max.\n\nFrom: ${fromEl.textContent}\nMessage: ${bodyEl.textContent}` }]
+      })
+    });
+    const data = await res.json();
+    replyText.value = data.content?.[0]?.text || 'Could not generate reply.';
+  } catch(e) { replyText.value = 'Error: ' + e.message; }
+}
+
+function copyTeamsReply() {
+  navigator.clipboard.writeText(document.getElementById('teams-reply-text').value).then(() => {
+    const btn = event.target;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy Reply', 1500);
+  });
+}
+
+async function teamsAiSummary() {
+  const btn = document.getElementById('teams-triage-btn');
+  const banner = document.getElementById('teams-summary-banner');
+  const summaryText = document.getElementById('teams-summary-text');
+  const summaryTime = document.getElementById('teams-summary-time');
+
+  if (!teamsLoaded) { connectTeams(); return; }
+
+  btn.textContent = '⟳ Analyzing…';
+  btn.style.pointerEvents = 'none';
+  banner.style.display = 'none';
+
+  const apiKey = localStorage.getItem('anthropic_api_key') || '';
+  if (!apiKey) {
+    banner.style.display = 'block';
+    summaryText.textContent = 'Set anthropic_api_key in localStorage to enable AI summaries.';
+    btn.textContent = '✦ AI Summary'; btn.style.pointerEvents = '';
+    return;
+  }
+
+  const chatsSnippet = teamsData.chats.slice(0, 8).map(c =>
+    `Chat with ${c.name}: "${c.preview}"`).join('\n');
+  const meetingsSnippet = teamsData.meetings.slice(0, 5).map(m => {
+    const d = new Date(m.start);
+    return `${m.subject} — ${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} ${d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}`;
+  }).join('\n');
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 250,
+        messages: [{ role: 'user', content:
+          `Summarize Patrick Johnson's (Principal, ai3 architecture firm) Teams activity in 2-3 sentences. Flag any chats needing a reply and note upcoming meetings.\n\nRecent chats:\n${chatsSnippet}\n\nUpcoming meetings:\n${meetingsSnippet}` }]
+      })
+    });
+    const data = await res.json();
+    banner.style.display = 'block';
+    summaryText.textContent = data.content?.[0]?.text || 'Could not generate summary.';
+    summaryTime.textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  } catch(e) {
+    banner.style.display = 'block';
+    summaryText.textContent = 'Error: ' + e.message;
+  }
+  btn.textContent = '✦ AI Summary'; btn.style.pointerEvents = '';
+}
+
+// ─── BADGES & BANNERS ─────────────────────────────────────────────────────
+function updateBadges() {
+  const remaining = tasks.filter(t => !t.done).length;
+  document.getElementById('badge-tasks').textContent = remaining;
+  document.getElementById('badge-today').textContent = TODAY_EVENTS.filter(e => !e.isAllDay).length;
+  document.getElementById('badge-email').textContent = INBOX_EMAILS.filter((e,i) => e.unread && !dismissedEmails.has(i)).length;
+  if (teamsLoaded) {
+    const teamsBadge = document.getElementById('badge-teams');
+    const unreadChats = teamsData.chats.filter(c => c.unread).length;
+    const mentions = teamsData.mentions.length;
+    const total = unreadChats + mentions;
+    teamsBadge.style.display = total > 0 ? '' : 'none';
+    teamsBadge.textContent = total;
+  }
+  document.getElementById('sb-tasks-count').textContent = remaining + ' task' + (remaining !== 1 ? 's' : '') + ' remaining';
+}
+
+function updateFocusBanner() {
+  const top = tasks.filter(t => !t.done).sort((a,b) => {
+    const o = {high:0,med:1,low:2};
+    return o[a.pri] - o[b.pri];
+  })[0];
+  document.getElementById('next-up-task').textContent = top ? top.label : 'All clear! 🎉';
+  document.getElementById('next-up-meta').textContent = top ? top.pri.toUpperCase() + ' priority' : 'No pending tasks';
+}
+
+function updateFocusScore() {
+  const now = nowHour();
+  const remaining = tasks.filter(t => !t.done).length;
+  const done = tasks.filter(t => t.done).length;
+  const total = tasks.length;
+  const taskScore = total > 0 ? (done / total) * 50 : 25;
+  // Penalize if there are morning events past
+  const pastEvents = TODAY_EVENTS.filter(e => !e.isAllDay && e.endH <= now).length;
+  const calScore = Math.min(pastEvents * 15, 40);
+  const score = Math.round(Math.min(taskScore + calScore + 10, 100));
+
+  document.getElementById('focus-score').textContent = score;
+  document.getElementById('focus-bar').style.width = score + '%';
+  const msg = score >= 80 ? 'Excellent day!' : score >= 50 ? 'Good progress' : score >= 25 ? 'Getting started' : 'Just warming up';
+  document.getElementById('focus-sub').textContent = msg;
+}
+
+function syncOutlook() {
+  const btn = document.querySelector('[data-tip="Sync Outlook"]');
+  btn.style.animation = 'spin 0.5s linear';
+  setTimeout(() => { btn.style.animation = ''; }, 500);
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────
+renderTimeline();
+renderTomorrow();
+renderCal();
+renderTaskList();
+updateBadges();
+updateFocusBanner();
+updateFocusScore();
+
+setInterval(() => { renderTimeline(); updateFocusScore(); }, 60000);
+</script>
+</body>
+</html>
